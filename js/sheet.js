@@ -125,6 +125,15 @@ const plusModes = new Map();
 
 const INVENTORY_EXCLUDED = ["class", "subclass", "background", "race"];
 
+/** dnd5e skill keys to display names, in Foundry's own wording. */
+const SKILL_NAMES = {
+  acr: "Acrobatics", ani: "Animal Handling", arc: "Arcana", ath: "Athletics",
+  dec: "Deception", his: "History", ins: "Insight", itm: "Intimidation",
+  inv: "Investigation", med: "Medicine", nat: "Nature", prc: "Perception",
+  prf: "Performance", per: "Persuasion", rel: "Religion", slt: "Sleight of Hand",
+  ste: "Stealth", sur: "Survival"
+};
+
 export function renderSheet(container, record) {
   const { payload, state } = record;
   const abilities = Object.entries(payload.abilities ?? {}).map(([key, a]) => `
@@ -135,9 +144,16 @@ export function renderSheet(container, record) {
       <small class="save-line"><b>Save:</b> ${fmtMod(a.save)}</small>
     </div>`).join("");
 
-  const skills = Object.entries(payload.skills ?? {}).map(([key, s]) => `
-    <div class="row"><span class="grow">${esc(key)} <small class="muted">(${esc(s.ability ?? "")})</small></span>
-    <span>${fmtMod(s.total)}</span><span class="muted">p${s.passive ?? "?"}</span></div>`).join("");
+  const skills = Object.entries(payload.skills ?? {})
+    .map(([key, s]) => ({ name: SKILL_NAMES[key] ?? key.toUpperCase(), ...s }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(s => `
+    <div class="row skill-row">
+      <b class="skill-abil">${esc((s.ability ?? "").toUpperCase())}</b>
+      <span class="grow">${esc(s.name)}</span>
+      <b class="skill-total">${fmtMod(s.total)}</b>
+      <span class="skill-passive muted">${s.passive ?? "?"}</span>
+    </div>`).join("");
 
   const classLine = payload.type === "character"
     ? (payload.classes ?? []).map(c => `${c.name} ${c.levels}`).join(" / ")

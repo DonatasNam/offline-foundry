@@ -194,6 +194,24 @@ summary::-webkit-details-marker { display: none; }
 .ability b { color: var(--accent); }
 .ability .save-line { color: var(--text); }
 
+.skill-row {
+  flex-wrap: nowrap;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.skill-row:last-child { border-bottom: none; }
+.skill-abil {
+  color: var(--accent);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  width: 36px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.skill-total { min-width: 34px; text-align: right; }
+.skill-passive { min-width: 22px; text-align: right; }
+
 .stepper { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
 .stepper button { min-width: 36px; min-height: 36px; padding: 2px; }
 .stepper b { color: var(--accent); }
