@@ -192,6 +192,7 @@ summary::-webkit-details-marker { display: none; }
 }
 .ability .score { font-size: 1.3rem; }
 .ability b { color: var(--accent); }
+.ability .save-line { color: var(--text); }
 
 .stepper { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
 .stepper button { min-width: 36px; min-height: 36px; padding: 2px; }

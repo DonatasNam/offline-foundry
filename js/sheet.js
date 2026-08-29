@@ -130,9 +130,9 @@ export function renderSheet(container, record) {
   const abilities = Object.entries(payload.abilities ?? {}).map(([key, a]) => `
     <div class="ability">
       <b>${esc(key.toUpperCase())}</b>
-      <span class="score">${a.score ?? "?"}</span>
-      <span>${fmtMod(a.mod)}</span>
-      <small class="muted">save ${fmtMod(a.save)}</small>
+      <span class="score">${fmtMod(a.mod)}</span>
+      <small class="muted">${a.score ?? "?"}</small>
+      <small class="save-line"><b>Save:</b> ${fmtMod(a.save)}</small>
     </div>`).join("");
 
   const skills = Object.entries(payload.skills ?? {}).map(([key, s]) => `
