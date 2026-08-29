@@ -153,10 +153,13 @@ export function renderSheet(container, record) {
   const mainTab = `
       <section class="card header">
         ${payload.img ? `<img class="portrait" src="${esc(payload.img)}" alt="" onerror="this.remove()">` : ""}
-        <div>
+        <div class="grow">
           <h2>${esc(payload.name)}</h2>
           <p class="muted">${esc(classLine)}</p>
-          <p class="muted">AC ${payload.ac ?? "?"} · Prof ${fmtMod(payload.proficiency)} · Speed ${payload.speed ?? "?"} ft</p>
+        </div>
+        <div class="header-stats">
+          <div class="stat-box"><b>Prof</b><span>${fmtMod(payload.proficiency)}</span></div>
+          <div class="stat-box"><b>Speed</b><span>${payload.speed ?? "?"} ft</span></div>
         </div>
       </section>
 

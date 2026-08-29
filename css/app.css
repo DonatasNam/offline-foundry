@@ -95,13 +95,42 @@ main { padding: 12px; max-width: 640px; margin: 0 auto; }
   width: 48px; height: 48px;
   border-radius: 8px;
   object-fit: cover;
+  /* Anchor the crop to the top so portraits keep their heads. */
+  object-position: center top;
   border: 1px solid var(--border);
   background: #000;
 }
-.portrait { width: 72px; height: 72px; }
-.header { display: flex; gap: 12px; align-items: center; }
+.portrait { width: 84px; height: 84px; }
+.header { display: flex; gap: 12px; align-items: center; padding: 14px 12px; }
 .header h2 { margin: 0; }
 .header p { margin: 2px 0; }
+
+.header-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 74px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  line-height: 1.25;
+}
+
+.stat-box b {
+  color: var(--accent);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.stat-box span { font-size: 1.05rem; }
 
 .hp .row { justify-content: center; flex-wrap: nowrap; gap: 8px; }
 .hp-value { font-size: 1.6rem; text-align: center; }
