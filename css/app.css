@@ -132,6 +132,14 @@ main { padding: 12px; max-width: 640px; margin: 0 auto; }
 
 .stat-box span { font-size: 1.05rem; }
 
+.combat-row { display: flex; gap: 8px; }
+.combat-row .stat-box { flex: 1; min-width: 0; padding: 6px 2px; }
+.combat-row .stat-box b { font-size: 0.78rem; }
+button.stat-box { background: var(--card); }
+.stat-box small,
+.stat-box small span { font-size: 0.55rem; color: var(--muted); letter-spacing: 0.03em; }
+.stat-box small .on { color: var(--accent); font-weight: 700; }
+
 .hp .row { justify-content: center; flex-wrap: nowrap; gap: 8px; }
 .hp-value { font-size: 1.6rem; text-align: center; }
 .hp-value b { color: var(--accent); }

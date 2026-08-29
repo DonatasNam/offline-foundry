@@ -143,6 +143,11 @@ export function renderSheet(container, record) {
     ? (payload.classes ?? []).map(c => `${c.name} ${c.levels}`).join(" / ")
     : `CR ${payload.cr ?? "?"}`;
 
+  // Weapon hit bonus ability: player-switchable, defaults to the better mod.
+  const hitAbility = state.hitAbility
+    ?? ((payload.abilities?.dex?.mod ?? 0) > (payload.abilities?.str?.mod ?? 0) ? "dex" : "str");
+  const hitBonus = (payload.proficiency ?? 0) + (payload.abilities?.[hitAbility]?.mod ?? 0);
+
   const hasSpells = (payload.items ?? []).some(i => i.type === "spell");
   const hasItems = (payload.items ?? []).some(i =>
     i.type !== "spell" && !INVENTORY_EXCLUDED.includes(i.type));
@@ -175,6 +180,20 @@ export function renderSheet(container, record) {
         <div class="row mode-row">
           <button type="button" class="chip mode-heal ${plusMode === "heal" ? "active" : ""}" data-plus-mode="heal">Heal</button>
           <button type="button" class="chip mode-temp ${plusMode === "temp" ? "active" : ""}" data-plus-mode="temp">Temp HP</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="combat-row">
+          <div class="stat-box"><b>AC</b><span>${payload.ac ?? "?"}</span></div>
+          <button type="button" class="stat-box tappable" data-hit-toggle
+            aria-label="Weapon hit bonus, tap to switch between Strength and Dexterity">
+            <b>Hit</b><span>${fmtMod(hitBonus)}</span>
+            <small><span class="${hitAbility === "str" ? "on" : ""}">STR</span>&middot;<span class="${hitAbility === "dex" ? "on" : ""}">DEX</span></small>
+          </button>
+          ${payload.spellcasting ? `
+          <div class="stat-box"><b>Spell Hit</b><span>${fmtMod(payload.spellcasting.attack)}</span></div>
+          <div class="stat-box"><b>Save DC</b><span>${payload.spellcasting.dc ?? "?"}</span></div>` : ""}
         </div>
       </section>
 
@@ -215,6 +234,10 @@ export function renderSheet(container, record) {
       rerender();
       window.scrollTo(0, 0);
       return;
+    }
+    if (button.hasAttribute("data-hit-toggle")) {
+      state.hitAbility = hitAbility === "str" ? "dex" : "str";
+      save(); rerender(); return;
     }
     if (button.dataset.plusMode) {
       // Pure DOM toggle so a typed amount survives the mode switch.
