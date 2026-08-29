@@ -1,7 +1,7 @@
 /* Offline Foundry service worker: precache the app shell, serve cache-first
    within scope, and let cached portraits answer when offline. Payload fetches
    (.json links) always go to the network; syncing is an online act. */
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 const SHELL_CACHE = `of-shell-${VERSION}`;
 const PORTRAITS = "of-portraits";
 const SHELL = [

@@ -7,7 +7,13 @@ const main = document.getElementById("main");
 const titleEl = document.getElementById("title");
 const backBtn = document.getElementById("back-btn");
 const scanBtn = document.getElementById("scan-btn");
+const installBtn = document.getElementById("install-btn");
 const toastEl = document.getElementById("toast");
+
+/** Installed to a home screen vs running as a browser page. */
+function isInstalled() {
+  return window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+}
 
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -33,11 +39,15 @@ async function showRoster() {
   titleEl.textContent = "Offline Foundry";
   backBtn.hidden = true;
 
+  const modeLine = `<p class="muted center">${isInstalled()
+    ? "Running as the installed app."
+    : "Running as a browser page. Install it for offline use."}</p>`;
+
   if (!records.length) {
     main.innerHTML = `<div class="empty">
       <p>No characters yet.</p>
       <p class="muted">In Foundry, open a character sheet, press the QR button, then tap Scan up top and point the camera at it.</p>
-    </div>`;
+    </div>` + modeLine;
     return;
   }
   main.innerHTML = `<div class="roster">` + records.map(r => `
@@ -51,7 +61,7 @@ async function showRoster() {
       </span>
       <button type="button" class="icon-btn" data-refresh title="Re-fetch from the last link">&#8635;</button>
       <button type="button" class="icon-btn" data-delete title="Remove">&#10005;</button>
-    </div>`).join("") + `</div>`;
+    </div>`).join("") + `</div>` + modeLine;
 
   main.onclick = async event => {
     const item = event.target.closest(".roster-item");
@@ -154,12 +164,41 @@ window.addEventListener("hashchange", route);
 backBtn.onclick = () => { location.hash = "#/"; };
 scanBtn.onclick = () => { location.hash = "#/scan"; };
 
+/* -------------------- install button -------------------- */
+/* Chromium fires beforeinstallprompt when the app is installable; the
+   automatic banner is heuristic and unreliable, so capture the event and
+   offer a deterministic Install button in the top bar instead. */
+
+let deferredInstall = null;
+
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault();
+  deferredInstall = event;
+  if (!isInstalled()) installBtn.hidden = false;
+});
+
+installBtn.onclick = async () => {
+  if (!deferredInstall) return;
+  const prompt = deferredInstall;
+  deferredInstall = null;
+  installBtn.hidden = true; // the stashed event is single use
+  prompt.prompt();
+  const choice = await prompt.userChoice.catch(() => null);
+  if (choice?.outcome !== "accepted") {
+    toast("Install dismissed. The button returns when Chrome offers again.");
+  }
+};
+
+window.addEventListener("appinstalled", () => {
+  installBtn.hidden = true;
+  toast("Installed. Open it from your home screen.");
+});
+
 /* ------------------- install hint (iOS) ------------------- */
 
 function iosInstallHint() {
   const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
-  const installed = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-  if (isIos && !installed && !localStorage.getItem("of-install-hint")) {
+  if (isIos && !isInstalled() && !localStorage.getItem("of-install-hint")) {
     const node = document.createElement("span");
     node.innerHTML = `Install: tap <b>Share</b>, then <b>Add to Home Screen</b>. `;
     const dismiss = document.createElement("button");
