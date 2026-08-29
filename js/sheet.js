@@ -117,6 +117,14 @@ function inventorySection(payload, state) {
   return html + `</section>`;
 }
 
+/** Active tab per character, session-scoped on purpose (fresh visit = Main). */
+const activeTabs = new Map();
+
+/** Mode of the green plus button per character: "heal" or "temp". */
+const plusModes = new Map();
+
+const INVENTORY_EXCLUDED = ["class", "subclass", "background", "race"];
+
 export function renderSheet(container, record) {
   const { payload, state } = record;
   const abilities = Object.entries(payload.abilities ?? {}).map(([key, a]) => `
@@ -135,8 +143,14 @@ export function renderSheet(container, record) {
     ? (payload.classes ?? []).map(c => `${c.name} ${c.levels}`).join(" / ")
     : `CR ${payload.cr ?? "?"}`;
 
-  container.innerHTML = `
-    <div class="sheet">
+  const hasSpells = (payload.items ?? []).some(i => i.type === "spell");
+  const hasItems = (payload.items ?? []).some(i =>
+    i.type !== "spell" && !INVENTORY_EXCLUDED.includes(i.type));
+  let tab = activeTabs.get(record.uuid) ?? "main";
+  if ((tab === "spells" && !hasSpells) || (tab === "items" && !hasItems)) tab = "main";
+  const plusMode = plusModes.get(record.uuid) ?? "heal";
+
+  const mainTab = `
       <section class="card header">
         ${payload.img ? `<img class="portrait" src="${esc(payload.img)}" alt="" onerror="this.remove()">` : ""}
         <div>
@@ -148,23 +162,39 @@ export function renderSheet(container, record) {
 
       <section class="card hp">
         <h2>Hit Points</h2>
-        <div class="row">
-          <button type="button" class="big" data-hp="-5">&minus;5</button>
-          <button type="button" class="big" data-hp="-1">&minus;1</button>
-          <div class="hp-value"><b>${state.hp.value}</b>/<span>${payload.hp?.max ?? "?"}</span>
-            ${state.hp.temp ? `<small class="temp">+${state.hp.temp} temp</small>` : ""}</div>
-          <button type="button" class="big" data-hp="1">+1</button>
-          <button type="button" class="big" data-hp="5">+5</button>
+        <div class="hp-value"><b>${state.hp.value}</b>/<span>${payload.hp?.max ?? "?"}</span></div>
+        ${state.hp.temp ? `<p class="temp-badge">${state.hp.temp} temp HP</p>` : ""}
+        <div class="row hp-apply">
+          <button type="button" class="big damage" data-apply="damage" aria-label="Apply damage">&minus;</button>
+          <input class="hp-amount" type="number" inputmode="numeric" min="0" placeholder="0" aria-label="Amount">
+          <button type="button" class="big heal" data-apply="plus" aria-label="Apply healing or temp HP">+</button>
         </div>
-        <div class="row muted"><button type="button" class="text-btn" data-temp>Set temp HP</button></div>
+        <div class="row mode-row">
+          <button type="button" class="chip mode-heal ${plusMode === "heal" ? "active" : ""}" data-plus-mode="heal">Heal</button>
+          <button type="button" class="chip mode-temp ${plusMode === "temp" ? "active" : ""}" data-plus-mode="temp">Temp HP</button>
+        </div>
       </section>
 
       <section class="card"><h2>Abilities</h2><div class="abilities">${abilities}</div></section>
-      ${spellSection(payload, state)}
-      ${inventorySection(payload, state)}
-      <section class="card"><details><summary><h2>Skills</h2></summary>${skills}</details></section>
+      <section class="card"><details><summary><h2>Skills</h2></summary>${skills}</details></section>`;
+
+  const content = tab === "spells" ? spellSection(payload, state)
+    : tab === "items" ? inventorySection(payload, state)
+    : mainTab;
+
+  const tabButton = (key, label) =>
+    `<button type="button" data-tab="${key}" class="${tab === key ? "active" : ""}">${label}</button>`;
+
+  container.innerHTML = `
+    <div class="sheet">
+      ${content}
       <p class="muted center">Synced ${new Date(record.savedAt).toLocaleString()}</p>
-    </div>`;
+    </div>
+    <nav class="tabbar">
+      ${tabButton("main", "Main")}
+      ${hasSpells ? tabButton("spells", "Spells") : ""}
+      ${hasItems ? tabButton("items", "Items") : ""}
+    </nav>`;
 
   let saveTimer = null;
   const save = () => {
@@ -177,15 +207,39 @@ export function renderSheet(container, record) {
     const button = event.target.closest("button");
     if (!button) return;
 
-    if (button.dataset.hp) {
-      const max = payload.hp?.max ?? 999;
-      state.hp.value = Math.min(max, Math.max(0, state.hp.value + Number(button.dataset.hp)));
-      save(); rerender(); return;
-    }
-    if (button.hasAttribute("data-temp")) {
-      const temp = Number(prompt("Temporary hit points:", state.hp.temp || 0));
-      if (!Number.isNaN(temp)) { state.hp.temp = Math.max(0, temp); save(); rerender(); }
+    if (button.dataset.tab) {
+      activeTabs.set(record.uuid, button.dataset.tab);
+      rerender();
+      window.scrollTo(0, 0);
       return;
+    }
+    if (button.dataset.plusMode) {
+      // Pure DOM toggle so a typed amount survives the mode switch.
+      plusModes.set(record.uuid, button.dataset.plusMode);
+      container.querySelectorAll("[data-plus-mode]").forEach(chip =>
+        chip.classList.toggle("active", chip === button));
+      return;
+    }
+    if (button.dataset.apply) {
+      const input = container.querySelector(".hp-amount");
+      const raw = (input?.value ?? "").trim();
+      const amount = Math.floor(Math.abs(Number(raw)));
+      const isTemp = button.dataset.apply === "plus" && plusModes.get(record.uuid) === "temp";
+      // An explicit 0 is only meaningful in temp mode (clearing temp HP).
+      if (raw === "" || Number.isNaN(amount) || (!amount && !isTemp)) return;
+      if (button.dataset.apply === "damage") {
+        // dnd rule: damage consumes temp HP first, the rest hits real HP.
+        const fromTemp = Math.min(state.hp.temp, amount);
+        state.hp.temp -= fromTemp;
+        state.hp.value = Math.max(0, state.hp.value - (amount - fromTemp));
+      } else if (isTemp) {
+        // dnd rule: temp HP never stacks; a new amount replaces the old one.
+        state.hp.temp = amount;
+      } else {
+        const max = payload.hp?.max ?? 999;
+        state.hp.value = Math.min(max, state.hp.value + amount);
+      }
+      save(); rerender(); return;
     }
     const slotBox = button.closest("[data-slot]");
     if (slotBox) {

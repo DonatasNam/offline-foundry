@@ -134,7 +134,10 @@ function showScan() {
     status.textContent = "Fetching…";
     finish(importFromText(text));
   }).then(stop => { stopScanner = stop; status.textContent = "Point the camera at the QR code."; })
-    .catch(err => { status.textContent = `Camera unavailable: ${err.message}. Paste the link below instead.`; });
+    .catch(err => {
+      video.hidden = true;
+      status.textContent = `Camera unavailable: ${err.message}. Paste the link below instead.`;
+    });
 
   document.getElementById("paste-go").onclick = () =>
     finish(importFromText(document.getElementById("paste-url").value));
@@ -156,6 +159,7 @@ function route() {
   leaveScanner();
   main.onclick = null;
   const hash = location.hash || "#/";
+  scanBtn.hidden = hash === "#/scan";
   if (hash.startsWith("#/c/")) return showSheet(hash.slice(3 + 1));
   if (hash === "#/scan") return showScan();
   return showRoster();
@@ -216,21 +220,39 @@ async function registerSw() {
   if (!("serviceWorker" in navigator)) return;
   try {
     const registration = await navigator.serviceWorker.register("sw.js");
+
+    const offerUpdate = worker => {
+      const node = document.createElement("span");
+      node.textContent = "Update ready.";
+      const reload = document.createElement("button");
+      reload.className = "text-btn";
+      reload.textContent = "Reload";
+      reload.onclick = () => worker.postMessage({ type: "SKIP_WAITING" });
+      node.append(reload);
+      toast(node, true);
+    };
+
+    // An update can already be parked in the waiting state, e.g. when the
+    // page was refreshed past the toast. updatefound never refires for it,
+    // so offer it explicitly on every load.
+    if (registration.waiting && navigator.serviceWorker.controller) {
+      offerUpdate(registration.waiting);
+    }
+
     registration.addEventListener("updatefound", () => {
       const worker = registration.installing;
       worker?.addEventListener("statechange", () => {
-        if (worker.state === "installed" && navigator.serviceWorker.controller) {
-          const node = document.createElement("span");
-          node.textContent = "Update ready. ";
-          const reload = document.createElement("button");
-          reload.className = "text-btn";
-          reload.textContent = "Reload";
-          reload.onclick = () => worker.postMessage({ type: "SKIP_WAITING" });
-          node.append(reload);
-          toast(node, true);
-        }
+        if (worker.state === "installed" && navigator.serviceWorker.controller) offerUpdate(worker);
       });
     });
+
+    // Installed apps rarely navigate, which is when browsers check for new
+    // service workers, so also check whenever the app returns to the front.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") registration.update().catch(() => {});
+    });
+    registration.update().catch(() => {});
+
     navigator.serviceWorker.addEventListener("controllerchange", () => location.reload());
   } catch (err) {
     console.warn("offline-foundry | service worker registration failed", err);
