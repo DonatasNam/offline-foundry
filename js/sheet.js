@@ -110,18 +110,10 @@ function spellSection(payload, state) {
   return html;
 }
 
-function inventorySection(payload, state) {
-  const order = ["weapon", "equipment", "consumable", "tool", "container", "loot", "feat"];
-  const rest = (payload.items ?? [])
-    .map((item, index) => ({ item, index }))
-    .filter(({ item }) => item.type !== "spell" && !["class", "subclass", "background", "race"].includes(item.type))
-    .sort((a, b) =>
-      (order.indexOf(a.item.type) + 99) - (order.indexOf(b.item.type) + 99) ||
-      a.item.name.localeCompare(b.item.name));
-  if (!rest.length) return "";
-
-  let html = `<section class="card"><h2>Inventory &amp; Features</h2>`;
-  for (const { item, index } of rest) {
+function itemListCard(title, entries, state) {
+  if (!entries.length) return "";
+  let html = `<section class="card"><h2>${title}</h2>`;
+  for (const { item, index } of entries) {
     const meta = itemMeta(item);
     html += `<div class="row item ${item.equipped === false ? "dim" : ""}">
       <span class="grow">${esc(item.name)}${meta ? `<small class="muted"> ${esc(meta)}</small>` : ""}</span>
@@ -129,6 +121,21 @@ function inventorySection(payload, state) {
     </div>`;
   }
   return html + `</section>`;
+}
+
+/** Non-spell entries split for the Feats and Items tabs. */
+function splitEntries(payload) {
+  const order = ["weapon", "equipment", "consumable", "tool", "container", "loot"];
+  const entries = (payload.items ?? [])
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.type !== "spell" && !INVENTORY_EXCLUDED.includes(item.type))
+    .sort((a, b) =>
+      (order.indexOf(a.item.type) + 99) - (order.indexOf(b.item.type) + 99) ||
+      a.item.name.localeCompare(b.item.name));
+  return {
+    features: entries.filter(({ item }) => item.type === "feat"),
+    gear: entries.filter(({ item }) => item.type !== "feat")
+  };
 }
 
 /** Active tab per character, session-scoped on purpose (fresh visit = Main). */
@@ -179,10 +186,11 @@ export function renderSheet(container, record) {
   const hitBonus = (payload.proficiency ?? 0) + (payload.abilities?.[hitAbility]?.mod ?? 0);
 
   const hasSpells = (payload.items ?? []).some(i => i.type === "spell");
-  const hasItems = (payload.items ?? []).some(i =>
-    i.type !== "spell" && !INVENTORY_EXCLUDED.includes(i.type));
+  const { features, gear } = splitEntries(payload);
   let tab = activeTabs.get(record.uuid) ?? "main";
-  if ((tab === "spells" && !hasSpells) || (tab === "items" && !hasItems)) tab = "main";
+  if ((tab === "spells" && !hasSpells)
+    || (tab === "feats" && !features.length)
+    || (tab === "items" && !gear.length)) tab = "main";
   const plusMode = plusModes.get(record.uuid) ?? "heal";
 
   const mainTab = `
@@ -231,7 +239,8 @@ export function renderSheet(container, record) {
       <section class="card"><details><summary><h2>Skills</h2></summary>${skills}</details></section>`;
 
   const content = tab === "spells" ? spellSection(payload, state)
-    : tab === "items" ? inventorySection(payload, state)
+    : tab === "feats" ? itemListCard("Features", features, state)
+    : tab === "items" ? itemListCard("Inventory", gear, state)
     : mainTab;
 
   const tabButton = (key, label) =>
@@ -245,7 +254,8 @@ export function renderSheet(container, record) {
     <nav class="tabbar">
       ${tabButton("main", "Main")}
       ${hasSpells ? tabButton("spells", "Spells") : ""}
-      ${hasItems ? tabButton("items", "Items") : ""}
+      ${features.length ? tabButton("feats", "Feats") : ""}
+      ${gear.length ? tabButton("items", "Items") : ""}
     </nav>`;
 
   let saveTimer = null;
