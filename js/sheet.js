@@ -115,8 +115,11 @@ function itemListCard(title, entries, state) {
   let html = `<section class="card"><h2>${title}</h2>`;
   for (const { item, index } of entries) {
     const meta = itemMeta(item);
-    html += `<div class="row item ${item.equipped === false ? "dim" : ""}">
-      <span class="grow">${esc(item.name)}${meta ? `<small class="muted"> ${esc(meta)}</small>` : ""}</span>
+    const shield = item.equipped === true
+      ? `<span class="equip-shield" role="img" aria-label="Equipped" title="Equipped"></span>`
+      : "";
+    html += `<div class="row item">
+      <span class="grow">${esc(item.name)}${shield}${meta ? `<small class="muted"> ${esc(meta)}</small>` : ""}</span>
       ${usesControl(index, item, state)}
     </div>`;
   }
