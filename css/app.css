@@ -216,6 +216,46 @@ summary::-webkit-details-marker { display: none; }
 .stepper button { min-width: 36px; min-height: 36px; padding: 2px; }
 .stepper b { color: var(--accent); }
 
+.card.slim { padding: 8px 12px; }
+.card.slim p { margin: 0; }
+
+.spell-level .level-head {
+  margin: 0;
+  flex-wrap: nowrap;
+}
+
+.pips {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pip {
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pip::before {
+  content: "";
+  display: block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--accent);
+  border-radius: 3px;
+  transform: rotate(45deg);
+}
+
+.pip.filled::before { background: var(--accent); }
+
 .spell summary {
   display: flex;
   align-items: center;

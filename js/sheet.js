@@ -65,19 +65,27 @@ function spellSection(payload, state) {
     groups.get(level).push(entry);
   }
 
-  let html = `<section class="card"><h2>Spells</h2>`;
+  const slotPips = levelKey => {
+    const slot = payload.slots?.[levelKey];
+    if (!slot?.max) return "";
+    const value = state.slots[levelKey] ?? 0;
+    let pips = `<span class="pips" data-slot="${levelKey}">`;
+    for (let i = 0; i < slot.max; i++) {
+      pips += `<button type="button" class="pip ${i < value ? "filled" : ""}" data-pip="${i}"
+        aria-label="Spell slot ${i + 1} of ${slot.max}"></button>`;
+    }
+    return pips + `</span>`;
+  };
+
+  let html = "";
   if (payload.spellcasting) {
-    html += `<p class="muted">Spell DC ${payload.spellcasting.dc} · Attack ${fmtMod(payload.spellcasting.attack)} (${esc(payload.spellcasting.ability)})</p>`;
+    html += `<section class="card slim">
+      <p class="muted center">Spell DC ${payload.spellcasting.dc} · Attack ${fmtMod(payload.spellcasting.attack)} (${esc(payload.spellcasting.ability)})</p>
+    </section>`;
   }
   for (const [level, entries] of groups) {
-    const slot = state.slots[String(level)] !== undefined && payload.slots?.[String(level)]
-      ? `<span class="stepper" data-slot="${level}">
-          <button type="button" data-step="-1">&minus;</button>
-          <b>${state.slots[String(level)]}</b>/<span>${payload.slots[String(level)].max}</span>
-          <button type="button" data-step="1">+</button>
-        </span>`
-      : "";
-    html += `<h3 class="row">${SPELL_LEVEL_LABEL(level)} ${slot}</h3>`;
+    html += `<section class="card spell-level">
+      <h2 class="row level-head">${SPELL_LEVEL_LABEL(level)} ${slotPips(String(level))}</h2>`;
     for (const { item } of entries) {
       const badges = [
         item.concentration ? `<span class="badge">C</span>` : "",
@@ -92,8 +100,14 @@ function spellSection(payload, state) {
         <div class="desc">${sanitizeDescription(item.description)}</div>
       </details>`;
     }
+    html += `</section>`;
   }
-  return html + `</section>`;
+  if (payload.slots?.pact?.max) {
+    html += `<section class="card spell-level">
+      <h2 class="row level-head">Pact Magic ${slotPips("pact")}</h2>
+    </section>`;
+  }
+  return html;
 }
 
 function inventorySection(payload, state) {
@@ -283,11 +297,13 @@ export function renderSheet(container, record) {
       }
       save(); rerender(); return;
     }
-    const slotBox = button.closest("[data-slot]");
-    if (slotBox) {
-      const level = slotBox.dataset.slot;
-      const max = payload.slots?.[level]?.max ?? 0;
-      state.slots[level] = Math.min(max, Math.max(0, (state.slots[level] ?? 0) + Number(button.dataset.step)));
+    if (button.classList.contains("pip")) {
+      const level = button.closest("[data-slot]").dataset.slot;
+      const index = Number(button.dataset.pip);
+      const current = state.slots[level] ?? 0;
+      // Tapping the last filled pip spends it; tapping any pip otherwise
+      // sets the remaining count up to and including it.
+      state.slots[level] = (index + 1 === current) ? index : index + 1;
       save(); rerender(); return;
     }
     const usesBox = button.closest("[data-uses]");
