@@ -178,10 +178,13 @@ let deferredInstall = null;
 window.addEventListener("beforeinstallprompt", event => {
   event.preventDefault();
   deferredInstall = event;
-  if (!isInstalled()) installBtn.hidden = false;
+  if (!isInstalled()) {
+    installBtn.hidden = false;
+    installBtn.onclick = promptInstall;
+  }
 });
 
-installBtn.onclick = async () => {
+const promptInstall = async () => {
   if (!deferredInstall) return;
   const prompt = deferredInstall;
   deferredInstall = null;
@@ -199,19 +202,29 @@ window.addEventListener("appinstalled", () => {
 });
 
 /* ------------------- install hint (iOS) ------------------- */
+/* Apple exposes no install API in ANY iOS browser (they are all WebKit,
+   Chrome included), so the Install button shows instructions instead:
+   share sheet, then Add to Home Screen. Works outside Safari on 16.4+. */
+
+const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+  || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+function showIosInstructions() {
+  const node = document.createElement("span");
+  node.innerHTML = "Tap the <b>Share</b> icon (square with arrow), then <b>Add to Home Screen</b>.";
+  const dismiss = document.createElement("button");
+  dismiss.className = "text-btn";
+  dismiss.textContent = "Got it";
+  dismiss.onclick = () => { toastEl.hidden = true; localStorage.setItem("of-install-hint", "1"); };
+  node.append(dismiss);
+  toast(node, true);
+}
 
 function iosInstallHint() {
-  const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
-  if (isIos && !isInstalled() && !localStorage.getItem("of-install-hint")) {
-    const node = document.createElement("span");
-    node.innerHTML = `Install: tap <b>Share</b>, then <b>Add to Home Screen</b>. `;
-    const dismiss = document.createElement("button");
-    dismiss.className = "text-btn";
-    dismiss.textContent = "Got it";
-    dismiss.onclick = () => { toastEl.hidden = true; localStorage.setItem("of-install-hint", "1"); };
-    node.append(dismiss);
-    toast(node, true);
-  }
+  if (!IS_IOS || isInstalled()) return;
+  installBtn.hidden = false;
+  installBtn.onclick = showIosInstructions;
+  if (!localStorage.getItem("of-install-hint")) showIosInstructions();
 }
 
 /* ------------------- service worker ------------------- */
